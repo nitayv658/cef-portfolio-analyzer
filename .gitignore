@@ -21,3 +21,7 @@ Thumbs.db
 # Output files (optional - remove if you want to track these)
 *.png
 *.csv
+
+# Search history (keep this private)
+portfolio_search_history.csv
+portfolio_history.db
