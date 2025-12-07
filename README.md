@@ -41,9 +41,10 @@ CEF Portfolio Analyzer is a powerful Python-based application that enables trade
 - Download portfolio performance data as CSV
 - Export portfolio configurations for documentation
 - Timestamped files for version control
-- **SQLite database** for persistent search history
+- **Flexible database backend** (SQLite for local, PostgreSQL for cloud)
 - Track all portfolio analyses with performance metrics
 - View recent searches in sidebar with metrics preview
+- Cloud database support (Supabase, Neon, Railway)
 
 ### 🔧 Technical Features
 - Smart caching for optimal performance
@@ -51,7 +52,7 @@ CEF Portfolio Analyzer is a powerful Python-based application that enables trade
 - Data validation and alignment
 - Progress indicators during data loading
 - Responsive UI optimized for trading workflows
-- **Local SQLite database** for history tracking
+- **Dual database support**: SQLite (local) or PostgreSQL (cloud)
 
 ## Installation
 
@@ -72,7 +73,32 @@ cd cef-portfolio-analyzer
 pip install -r requirements.txt
 ```
 
-3. **Run the Streamlit app**
+3. **Configure database** (optional - uses SQLite by default)
+
+For local development with SQLite (no configuration needed):
+- The app will automatically create `portfolio_history.db`
+
+For cloud deployment with PostgreSQL:
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env and add your database credentials
+# DB_TYPE=postgres
+# DB_HOST=your-project.supabase.co
+# DB_PORT=5432
+# DB_NAME=postgres
+# DB_USER=postgres
+# DB_PASSWORD=your-password
+# DB_SSL_MODE=require
+```
+
+Supported cloud database providers:
+- [Supabase](https://supabase.com/) - PostgreSQL with generous free tier
+- [Neon](https://neon.tech/) - Serverless PostgreSQL
+- [Railway](https://railway.app/) - Easy database deployment
+
+4. **Run the Streamlit app**
 ```bash
 streamlit run portfolio_app.py
 ```
@@ -141,12 +167,13 @@ This interactive tool allows you to:
 
 ### Search History
 
-All portfolio analyses are automatically saved to a local SQLite database:
+All portfolio analyses are automatically saved to your configured database (SQLite or PostgreSQL):
 - View recent searches in the sidebar
 - See performance metrics for past searches
 - Export full history to CSV
 - Clear history when needed
 - Use `db_viewer.py` for advanced database management
+- Cloud database enables access across multiple devices
 
 ## Project Structure
 
@@ -154,16 +181,47 @@ All portfolio analyses are automatically saved to a local SQLite database:
 cef-portfolio-analyzer/
 ├── portfolio_app.py           # Streamlit web application
 ├── portfolio_backtest.py      # CLI backtesting script
+├── database.py                # Database abstraction layer (SQLite/PostgreSQL)
 ├── db_viewer.py               # Database viewer/management tool
+├── test_db_connection.py      # Database connection test script
 ├── requirements.txt           # Python dependencies
+├── .env.example               # Environment variables template
+├── .env                       # Your database credentials (not in git)
 ├── README.md                  # Project documentation
-├── portfolio_history.db       # SQLite database (auto-created)
+├── portfolio_history.db       # SQLite database (auto-created, local only)
 ├── examples/                  # Example scripts
 │   └── nitay.py              # Async fetching example
 └── *.png, *.csv              # Generated output files
 ```
 
 ## Configuration
+
+### Database Configuration
+
+The application supports two database backends:
+
+**SQLite (Default - Local Development)**
+- No configuration required
+- Database file created automatically as `portfolio_history.db`
+- Perfect for local development and single-user scenarios
+
+**PostgreSQL (Cloud - Production)**
+1. Create a PostgreSQL database on [Supabase](https://supabase.com/), [Neon](https://neon.tech/), or [Railway](https://railway.app/)
+2. Copy `.env.example` to `.env`
+3. Configure your database credentials:
+   ```bash
+   DB_TYPE=postgres
+   DB_HOST=your-project.supabase.co
+   DB_PORT=5432
+   DB_NAME=postgres
+   DB_USER=postgres
+   DB_PASSWORD=your-password
+   DB_SSL_MODE=require
+   ```
+4. Test the connection:
+   ```bash
+   python3 test_db_connection.py
+   ```
 
 ### Preset Portfolios
 
@@ -214,6 +272,9 @@ WEIGHTS = np.array([0.25, 0.15, 0.15, 0.15, 0.15, 0.15])
 - **yfinance** - Real-time and historical market data
 - **Pandas & NumPy** - Data manipulation and numerical computing
 - **Matplotlib** - Performance visualization
+- **SQLite / PostgreSQL** - Flexible database backend
+- **psycopg2** - PostgreSQL adapter for cloud deployment
+- **python-dotenv** - Environment variable management
 
 ## Contributing
 
