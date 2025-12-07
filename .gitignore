@@ -25,3 +25,6 @@ Thumbs.db
 # Search history (keep this private)
 portfolio_search_history.csv
 portfolio_history.db
+
+# Environment variables (secrets)
+.env
