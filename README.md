@@ -46,6 +46,14 @@ CEF Portfolio Analyzer is a powerful Python-based application that enables trade
 - View recent searches in sidebar with metrics preview
 - Cloud database support (Supabase, Neon, Railway)
 
+### 🤖 AI Portfolio Advisor
+- **Claude-powered intelligent analysis** of your portfolios
+- Natural language insights and recommendations
+- Strengths and weaknesses identification
+- Risk assessment and scoring
+- Actionable improvement suggestions
+- Fallback rule-based analysis when AI unavailable
+
 ### 🔧 Technical Features
 - Smart caching for optimal performance
 - Error handling with detailed diagnostics
@@ -97,6 +105,13 @@ Supported cloud database providers:
 - [Supabase](https://supabase.com/) - PostgreSQL with generous free tier
 - [Neon](https://neon.tech/) - Serverless PostgreSQL
 - [Railway](https://railway.app/) - Easy database deployment
+
+For AI Portfolio Advisor (optional):
+```bash
+# Add to your .env file
+ANTHROPIC_API_KEY=your-api-key-here
+```
+Get your API key from [Anthropic Console](https://console.anthropic.com/)
 
 4. **Run the Streamlit app**
 ```bash
@@ -182,11 +197,12 @@ cef-portfolio-analyzer/
 ├── portfolio_app.py           # Streamlit web application
 ├── portfolio_backtest.py      # CLI backtesting script
 ├── database.py                # Database abstraction layer (SQLite/PostgreSQL)
+├── ai_advisor.py              # AI portfolio analysis module (Claude API)
 ├── db_viewer.py               # Database viewer/management tool
 ├── test_db_connection.py      # Database connection test script
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Environment variables template
-├── .env                       # Your database credentials (not in git)
+├── .env                       # Your credentials (not in git)
 ├── README.md                  # Project documentation
 ├── portfolio_history.db       # SQLite database (auto-created, local only)
 ├── examples/                  # Example scripts
@@ -275,6 +291,8 @@ WEIGHTS = np.array([0.25, 0.15, 0.15, 0.15, 0.15, 0.15])
 - **SQLite / PostgreSQL** - Flexible database backend
 - **psycopg2** - PostgreSQL adapter for cloud deployment
 - **python-dotenv** - Environment variable management
+- **Anthropic Claude API** - AI-powered portfolio analysis
+- **anthropic** - Official Anthropic Python SDK
 
 ## Contributing
 
