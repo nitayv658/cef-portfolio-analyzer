@@ -5,6 +5,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import streamlit as st
 import warnings
+import sqlite3
+import json
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -12,11 +14,164 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 TICKERS_WDI = ["PDI", "BIT", "DSL", "KIO", "EVV", "WDI"]
 TICKERS_GOF = ["PDI", "BIT", "DSL", "KIO", "EVV", "GOF"]
 WEIGHTS = np.array([0.25, 0.15, 0.15, 0.15, 0.15, 0.15])
+DB_PATH = "portfolio_history.db"
 
 # Validate weights sum to 1.0
 if not np.isclose(WEIGHTS.sum(), 1.0):
     raise ValueError(f"Weights must sum to 1.0, currently sum to {WEIGHTS.sum():.4f}")
 # ----------------------------------------
+
+# ---------------- DATABASE FUNCTIONS ----------------
+def init_database():
+    """Initialize SQLite database and create tables if they don't exist."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS search_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            portfolio_name TEXT NOT NULL,
+            tickers TEXT NOT NULL,
+            weights TEXT NOT NULL,
+            years_back INTEGER,
+            rebalance_option TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS portfolio_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            search_id INTEGER,
+            total_return TEXT,
+            annualized_return TEXT,
+            annualized_volatility TEXT,
+            max_drawdown TEXT,
+            period TEXT,
+            FOREIGN KEY (search_id) REFERENCES search_history (id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+
+def save_to_database(tickers, weights, portfolio_name="Custom", years_back=5, rebalance_option="none", metrics=None):
+    """Save portfolio search to database."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    tickers_json = json.dumps(tickers if isinstance(tickers, list) else list(tickers))
+    weights_json = json.dumps(weights.tolist() if isinstance(weights, np.ndarray) else weights)
+
+    cursor.execute('''
+        INSERT INTO search_history (timestamp, portfolio_name, tickers, weights, years_back, rebalance_option)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (timestamp, portfolio_name, tickers_json, weights_json, years_back, rebalance_option))
+
+    search_id = cursor.lastrowid
+
+    # Save metrics if provided
+    if metrics:
+        cursor.execute('''
+            INSERT INTO portfolio_metrics (search_id, total_return, annualized_return, annualized_volatility, max_drawdown, period)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (search_id, metrics.get('Total Return'), metrics.get('Annualized Return'),
+              metrics.get('Annualized Volatility'), metrics.get('Max Drawdown'), metrics.get('Period')))
+
+    conn.commit()
+    conn.close()
+
+
+def load_history_from_database(limit=100):
+    """Load search history from database."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id, timestamp, portfolio_name, tickers, weights, years_back, rebalance_option
+            FROM search_history
+            ORDER BY timestamp DESC
+            LIMIT ?
+        ''', (limit,))
+
+        rows = cursor.fetchall()
+        history = []
+
+        for row in rows:
+            history.append({
+                'id': row[0],
+                'timestamp': row[1],
+                'portfolio_name': row[2],
+                'tickers': json.loads(row[3]),
+                'weights': json.loads(row[4]),
+                'years_back': row[5],
+                'rebalance_option': row[6]
+            })
+
+        conn.close()
+        return history
+    except Exception:
+        return []
+
+
+def get_portfolio_metrics(search_id):
+    """Get metrics for a specific search."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT total_return, annualized_return, annualized_volatility, max_drawdown, period
+            FROM portfolio_metrics
+            WHERE search_id = ?
+        ''', (search_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return {
+                'Total Return': row[0],
+                'Annualized Return': row[1],
+                'Annualized Volatility': row[2],
+                'Max Drawdown': row[3],
+                'Period': row[4]
+            }
+        return None
+    except Exception:
+        return None
+
+
+def clear_database_history():
+    """Clear all history from database."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM portfolio_metrics')
+        cursor.execute('DELETE FROM search_history')
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+def export_history_to_csv():
+    """Export database history to CSV format."""
+    history = load_history_from_database(limit=10000)
+    if history:
+        df = pd.DataFrame(history)
+        df['tickers'] = df['tickers'].apply(lambda x: ', '.join(x))
+        df['weights'] = df['weights'].apply(lambda x: ', '.join([str(w) for w in x]))
+        return df.to_csv(index=False)
+    return ""
+
+
+# Initialize database on startup
+init_database()
+# ----------------------------------------------------
 
 # Page config
 st.set_page_config(
@@ -28,20 +183,66 @@ st.set_page_config(
 st.title("📊 Custom ETF Portfolio Backtest Dashboard")
 st.markdown(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
+# Initialize session state for custom portfolio (must be before sidebar)
+if 'custom_tickers' not in st.session_state:
+    st.session_state.custom_tickers = ["SPY"]
+if 'custom_weights' not in st.session_state:
+    st.session_state.custom_weights = [100.0]
+
+# Load search history from database
+search_history = load_history_from_database(limit=100)
+
 # Sidebar for configuration
 st.sidebar.header("⚙️ Configuration")
 portfolio_mode = st.sidebar.radio("Portfolio Mode", ["Preset Portfolios", "Custom Portfolio Builder"])
 years_back = st.sidebar.slider("Years of History", 1, 10, 5)
 rebalance_option = st.sidebar.selectbox("Rebalancing", ["monthly", "none"])
 
+# Search History in sidebar
+st.sidebar.markdown("---")
+st.sidebar.header("📜 Search History")
+if search_history:
+    st.sidebar.write(f"Total searches: {len(search_history)}")
+
+    col1, col2 = st.sidebar.columns(2)
+
+    with col1:
+        if st.button("📥 Export", use_container_width=True, key="export_history"):
+            csv_data = export_history_to_csv()
+            st.download_button(
+                label="Download CSV",
+                data=csv_data,
+                file_name=f"search_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key="download_csv"
+            )
+
+    with col2:
+        if st.button("🗑️ Clear", use_container_width=True, key="clear_history"):
+            clear_database_history()
+            st.rerun()
+
+    # Show recent searches
+    with st.sidebar.expander("View Recent Searches (Last 10)"):
+        for entry in search_history[:10]:
+            st.write(f"**{entry['timestamp']}**")
+            st.write(f"📁 {entry['portfolio_name']}")
+            st.write(f"📊 Tickers: {', '.join(entry['tickers'])}")
+            st.write(f"⚙️ {entry['years_back']}Y, {entry['rebalance_option']}")
+
+            # Show metrics if available
+            metrics = get_portfolio_metrics(entry['id'])
+            if metrics:
+                st.write(f"📈 Return: {metrics['Annualized Return']}")
+                st.write(f"📉 Max DD: {metrics['Max Drawdown']}")
+
+            st.markdown("---")
+else:
+    st.sidebar.info("No search history yet")
+
 START = (datetime.today() - timedelta(days=365 * years_back)).strftime("%Y-%m-%d")
 END = datetime.today().strftime("%Y-%m-%d")
-
-# Initialize session state for custom portfolio
-if 'custom_tickers' not in st.session_state:
-    st.session_state.custom_tickers = ["SPY"]
-if 'custom_weights' not in st.session_state:
-    st.session_state.custom_weights = [100.0]
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -176,7 +377,7 @@ def calculate_metrics(portfolio):
     running_max = portfolio.cummax()
     drawdowns = (portfolio - running_max) / running_max
     max_dd = drawdowns.min()
-    
+
     return {
         'Total Return': f"{total_return:.2%}",
         'Annualized Return': f"{annualized_return:.2%}",
@@ -184,6 +385,8 @@ def calculate_metrics(portfolio):
         'Max Drawdown': f"{max_dd:.2%}",
         'Period': f"{portfolio.index[0].date()} to {portfolio.index[-1].date()}"
     }
+
+
 
 
 # Custom Portfolio Builder
@@ -300,6 +503,10 @@ if portfolio_mode == "Custom Portfolio Builder":
                     portfolio = compute_portfolio(prices, weights_array, rebalance=rebalance_option)
                     metrics = calculate_metrics(portfolio)
 
+                    # Save to database
+                    save_to_database(st.session_state.custom_tickers, st.session_state.custom_weights,
+                                   "Custom Portfolio", years_back, rebalance_option, metrics)
+
                     # Display metrics
                     cols = st.columns(4)
                     cols[0].metric("Total Return", metrics['Total Return'])
@@ -379,6 +586,9 @@ else:
                     portfolio_wdi = compute_portfolio(prices_wdi, WEIGHTS, rebalance=rebalance_option)
                     metrics_wdi = calculate_metrics(portfolio_wdi)
 
+                    # Save to database
+                    save_to_database(TICKERS_WDI, WEIGHTS, "WDI Portfolio", years_back, rebalance_option, metrics_wdi)
+
                     # Display metrics
                     cols = st.columns(4)
                     cols[0].metric("Total Return", metrics_wdi['Total Return'])
@@ -429,6 +639,9 @@ else:
                 try:
                     portfolio_gof = compute_portfolio(prices_gof, WEIGHTS, rebalance=rebalance_option)
                     metrics_gof = calculate_metrics(portfolio_gof)
+
+                    # Save to database
+                    save_to_database(TICKERS_GOF, WEIGHTS, "GOF Portfolio", years_back, rebalance_option, metrics_gof)
 
                     # Display metrics
                     cols = st.columns(4)

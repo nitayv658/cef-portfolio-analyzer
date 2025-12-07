@@ -37,10 +37,13 @@ CEF Portfolio Analyzer is a powerful Python-based application that enables trade
 - Combined performance visualization
 - Real-time market data monitoring
 
-### 💾 Data Export
+### 💾 Data Export & History
 - Download portfolio performance data as CSV
 - Export portfolio configurations for documentation
 - Timestamped files for version control
+- **SQLite database** for persistent search history
+- Track all portfolio analyses with performance metrics
+- View recent searches in sidebar with metrics preview
 
 ### 🔧 Technical Features
 - Smart caching for optimal performance
@@ -48,6 +51,7 @@ CEF Portfolio Analyzer is a powerful Python-based application that enables trade
 - Data validation and alignment
 - Progress indicators during data loading
 - Responsive UI optimized for trading workflows
+- **Local SQLite database** for history tracking
 
 ## Installation
 
@@ -83,6 +87,20 @@ python portfolio_backtest.py
 ```
 
 This will generate performance charts and CSV files for the preset portfolios.
+
+### Database Management
+
+View and manage your portfolio search history:
+```bash
+python db_viewer.py
+```
+
+This interactive tool allows you to:
+- View all searches with metrics
+- Export history to CSV
+- View statistics
+- Delete specific searches
+- Clear all history
 
 ## Usage
 
@@ -121,14 +139,25 @@ This will generate performance charts and CSV files for the preset portfolios.
 3. View current market data and performance metrics
 4. Compare both portfolios side-by-side
 
+### Search History
+
+All portfolio analyses are automatically saved to a local SQLite database:
+- View recent searches in the sidebar
+- See performance metrics for past searches
+- Export full history to CSV
+- Clear history when needed
+- Use `db_viewer.py` for advanced database management
+
 ## Project Structure
 
 ```
 cef-portfolio-analyzer/
 ├── portfolio_app.py           # Streamlit web application
 ├── portfolio_backtest.py      # CLI backtesting script
+├── db_viewer.py               # Database viewer/management tool
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # Project documentation
+├── portfolio_history.db       # SQLite database (auto-created)
 ├── examples/                  # Example scripts
 │   └── nitay.py              # Async fetching example
 └── *.png, *.csv              # Generated output files
