@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 import warnings
 import database
+import ai_advisor
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -363,6 +364,33 @@ if portfolio_mode == "Custom Portfolio Builder":
                     cols[2].metric("Volatility", metrics['Annualized Volatility'])
                     cols[3].metric("Max Drawdown", metrics['Max Drawdown'])
 
+                    # AI Portfolio Advisor
+                    st.markdown("---")
+                    st.subheader("🤖 AI Portfolio Advisor")
+
+                    with st.expander("📊 Get AI Analysis", expanded=False):
+                        if st.button("🔍 Analyze Portfolio with AI", key="analyze_custom", use_container_width=True):
+                            with st.spinner("AI is analyzing your portfolio..."):
+                                result = ai_advisor.analyze_portfolio(
+                                    st.session_state.custom_tickers,
+                                    st.session_state.custom_weights,
+                                    metrics,
+                                    "Custom Portfolio"
+                                )
+
+                                if result['success']:
+                                    st.success("✅ Analysis Complete!")
+                                    st.markdown(result['analysis'])
+                                    st.caption(f"Analysis generated at {result['timestamp']} | Tokens used: {result['tokens_used']}")
+                                else:
+                                    st.error(f"❌ {result['error']}")
+                                    if 'setup_instructions' in result:
+                                        st.info(f"ℹ️ {result['setup_instructions']}")
+
+                                    # Show fallback insights
+                                    st.markdown("**Quick Insights (Rule-based):**")
+                                    st.info(ai_advisor.get_quick_insights(metrics))
+
                     # Plot
                     fig, ax = plt.subplots(figsize=(12, 6))
                     ax.plot(portfolio.index, portfolio, label='Custom Portfolio', linewidth=2, color='purple')
@@ -445,6 +473,29 @@ else:
                     cols[2].metric("Volatility", metrics_wdi['Annualized Volatility'])
                     cols[3].metric("Max Drawdown", metrics_wdi['Max Drawdown'])
 
+                    # AI Portfolio Advisor
+                    st.markdown("---")
+                    with st.expander("🤖 Get AI Analysis", expanded=False):
+                        if st.button("🔍 Analyze WDI Portfolio with AI", key="analyze_wdi", use_container_width=True):
+                            with st.spinner("AI is analyzing your portfolio..."):
+                                result = ai_advisor.analyze_portfolio(
+                                    TICKERS_WDI,
+                                    (WEIGHTS * 100).tolist(),
+                                    metrics_wdi,
+                                    "WDI Portfolio"
+                                )
+
+                                if result['success']:
+                                    st.success("✅ Analysis Complete!")
+                                    st.markdown(result['analysis'])
+                                    st.caption(f"Analysis generated at {result['timestamp']} | Tokens used: {result['tokens_used']}")
+                                else:
+                                    st.error(f"❌ {result['error']}")
+                                    if 'setup_instructions' in result:
+                                        st.info(f"ℹ️ {result['setup_instructions']}")
+                                    st.markdown("**Quick Insights (Rule-based):**")
+                                    st.info(ai_advisor.get_quick_insights(metrics_wdi))
+
                     # Plot
                     fig, ax = plt.subplots(figsize=(12, 6))
                     ax.plot(portfolio_wdi.index, portfolio_wdi, label='WDI Portfolio', linewidth=2)
@@ -498,6 +549,29 @@ else:
                     cols[1].metric("Annualized Return", metrics_gof['Annualized Return'])
                     cols[2].metric("Volatility", metrics_gof['Annualized Volatility'])
                     cols[3].metric("Max Drawdown", metrics_gof['Max Drawdown'])
+
+                    # AI Portfolio Advisor
+                    st.markdown("---")
+                    with st.expander("🤖 Get AI Analysis", expanded=False):
+                        if st.button("🔍 Analyze GOF Portfolio with AI", key="analyze_gof", use_container_width=True):
+                            with st.spinner("AI is analyzing your portfolio..."):
+                                result = ai_advisor.analyze_portfolio(
+                                    TICKERS_GOF,
+                                    (WEIGHTS * 100).tolist(),
+                                    metrics_gof,
+                                    "GOF Portfolio"
+                                )
+
+                                if result['success']:
+                                    st.success("✅ Analysis Complete!")
+                                    st.markdown(result['analysis'])
+                                    st.caption(f"Analysis generated at {result['timestamp']} | Tokens used: {result['tokens_used']}")
+                                else:
+                                    st.error(f"❌ {result['error']}")
+                                    if 'setup_instructions' in result:
+                                        st.info(f"ℹ️ {result['setup_instructions']}")
+                                    st.markdown("**Quick Insights (Rule-based):**")
+                                    st.info(ai_advisor.get_quick_insights(metrics_gof))
 
                     # Plot
                     fig, ax = plt.subplots(figsize=(12, 6))
